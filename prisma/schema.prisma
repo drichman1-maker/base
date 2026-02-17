@@ -1,0 +1,225 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------
+// CORE IDENTITY MODELS
+// ---------------------------------------------------------
+
+model Player {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique // For /players/[slug]
+  bio       String? // AI-generated bio
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cards Card[]
+
+  @@index([slug])
+  @@index([name])
+}
+
+model Set {
+  id          String   @id @default(cuid())
+  year        Int
+  name        String
+  slug        String   @unique // For /sets/[slug] - e.g. "1952-topps"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cards Card[]
+
+  @@unique([year, name])
+  @@index([slug])
+}
+
+model Card {
+  id           String  @id @default(cuid())
+  cardNumber   String // "311" or "101a"
+  name         String? // Optional override name e.g. "Mantle Rookie"
+  slug         String  @unique // For /cards/[slug] - e.g. "1952-topps-mickey-mantle-311"
+  description  String?
+  imageUrl     String?
+  
+  // Relations
+  playerId      String
+  player       Player @relation(fields: [playerId], references: [id])
+  
+  setId        String
+  set          Set    @relation(fields: [setId], references: [id])
+  
+  gradedCards  GradedCard[]
+  watchlistItems WatchlistItem[]
+  
+  // SEO & Metrics (Pre-computed)
+  fairValueScore    Float?
+  liquidityIndex    Float?
+  momentumScore     Float? // 0-100
+  volatilityScore   Float?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([setId, playerId, cardNumber])
+  @@index([slug])
+}
+
+// ---------------------------------------------------------
+// MARKET DATA MODELS
+// ---------------------------------------------------------
+
+model GradedCard {
+  id              String @id @default(cuid())
+  cardId          String
+  card            Card   @relation(fields: [cardId], references: [id])
+  
+  gradingCompany  String // PSA, BGS, SGC, CGC
+  grade           String // "10", "9.5", "Authentic"
+  
+  population      Int    @default(0)
+  popHigher       Int?   @default(0) // How many cards graded higher exist?
+  
+  // Computed Market Data
+  recentSales       Sale[]
+  listings          Listing[]
+  collectionItems   CollectionItem[]
+  marketValue       Float? // Estimated current value
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([cardId, gradingCompany, grade])
+  @@index([cardId])
+}
+
+model Sale {
+  id           String   @id @default(cuid())
+  gradedCardId String
+  gradedCard   GradedCard @relation(fields: [gradedCardId], references: [id])
+  
+  price        Float
+  date         DateTime
+  source       String // eBay, PWCC, Goldin
+  url          String?
+  sourceId     String? // External ID
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([gradedCardId])
+  @@index([date])
+}
+
+model Listing {
+  id           String   @id @default(cuid())
+  gradedCardId String
+  gradedCard   GradedCard @relation(fields: [gradedCardId], references: [id])
+  
+  price        Float
+  type         String // auction, bin (buy it now)
+  url          String
+  source       String
+  title        String
+  imageUrl     String?
+  sellerRating Float?
+  
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([gradedCardId])
+}
+
+// ---------------------------------------------------------
+// USER & REGSITRY MODELS
+// ---------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  name          String?
+  image         String?
+  
+  role          String    @default("USER") // USER, ADMIN
+  
+  collections   Collection[]
+  watchlist     Watchlist?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  items       CollectionItem[]
+  
+  // Aggregates for "Registry" leaderboard
+  totalValue  Float    @default(0)
+  itemCount   Int      @default(0)
+  
+  isPublic    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, name])
+}
+
+model CollectionItem {
+  id             String     @id @default(cuid())
+  collectionId   String
+  collection     Collection @relation(fields: [collectionId], references: [id])
+  
+  gradedCardId   String
+  gradedCard     GradedCard @relation(fields: [gradedCardId], references: [id])
+  
+  purchasePrice  Float?
+  purchaseDate   DateTime?
+  notes          String?
+  certNumber     String?    // The specific cert number on the slab
+  
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([collectionId])
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  
+  items     WatchlistItem[]
+  
+  updatedAt DateTime @updatedAt
+}
+
+model WatchlistItem {
+  id          String @id @default(cuid())
+  watchlistId String
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id])
+  
+  cardId      String // Watching a generic card identity
+  card        Card   @relation(fields: [cardId], references: [id])
+  
+  targetPrice Float? // Alert if below this
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([watchlistId, cardId])
+}
