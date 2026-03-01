@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  position    String
+  team        String?
+  careerStats Json?    // Store stats as JSON for flexibility
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  cards       Card[]
+}
+
+model Set {
+  id          String   @id @default(cuid())
+  name        String
+  year        Int
+  brand       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  cards       Card[]
+}
+
+model Card {
+  id              String       @id @default(cuid())
+  slug            String       @unique
+  playerId        String
+  player          Player       @relation(fields: [playerId], references: [id])
+  setId           String
+  set             Set          @relation(fields: [setId], references: [id])
+  number          String?
+  description     String?
+  imageUrl        String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  // Market intelligence scores (computed)
+  fairValueScore  Float?
+  liquidityIndex  Float?
+  momentumScore   Float?
+  volatilityScore Float?
+  
+  gradedCards     GradedCard[]
+  listings        Listing[]
+  watchlists      Watchlist[]
+}
+
+model GradedCard {
+  id          String   @id @default(cuid())
+  cardId      String
+  card        Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  grader      String   // "PSA", "BGS", "SGC"
+  grade       String   // "10", "9.5", "9", etc.
+  population  Int?     // Population report number
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  sales       Sale[]
+  collections Collection[]
+  
+  @@unique([cardId, grader, grade])
+  @@index([grader, grade])
+}
+
+model Sale {
+  id            String     @id @default(cuid())
+  gradedCardId  String
+  gradedCard    GradedCard @relation(fields: [gradedCardId], references: [id], onDelete: Cascade)
+  price         Float
+  date          DateTime
+  source        String     // "eBay", "PWCC", "Goldin", "Heritage", "MySlabs"
+  url           String?
+  lotNumber     String?
+  auctionHouse  String?
+  
+  createdAt     DateTime   @default(now())
+  
+  @@index([gradedCardId, date])
+  @@index([date])
+}
+
+model Listing {
+  id          String   @id @default(cuid())
+  cardId      String
+  card        Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  title       String
+  price       Float
+  currency    String   @default("USD")
+  source      String   // "eBay", "MySlabs", etc.
+  url         String
+  imageUrl    String?
+  condition   String?
+  listedAt    DateTime
+  expiresAt   DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([cardId, price])
+  @@index([listedAt])
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  collections Collection[]
+  watchlists  Watchlist[]
+}
+
+model Collection {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  gradedCards GradedCard[]
+}
+
+model Watchlist {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId      String
+  card        Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  targetPrice Float?   // Alert when price drops below this
+  alertEnabled Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([userId, cardId])
+}
