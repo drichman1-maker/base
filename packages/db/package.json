@@ -7,12 +7,10 @@
     "./client": "./src/client.ts"
   },
   "scripts": {
-    "build": "tsc",
     "db:generate": "prisma generate",
     "db:push": "prisma db push --skip-generate",
     "db:studio": "prisma studio",
-    "db:seed": "tsx src/seed.ts",
-    "dev": "tsc --watch"
+    "db:seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.7.0"

@@ -8,8 +8,6 @@
     "./lib/utils": "./src/lib/utils.ts"
   },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
