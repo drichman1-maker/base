@@ -53,4 +53,27 @@ slugger/
 - [x] Phase 1: Foundation - DONE
 - [x] Phase 2: Frontend Scaffolding - DONE
 - [x] Phase 3: Backend & Data Integration - DONE
-- [ ] Phase 4: Deployment
+- [x] Phase 4: Deployment - READY
+
+## Deployment
+
+**Domain:** sluggerdata.com  
+**Platform:** Vercel  
+**Database:** PostgreSQL
+
+### Production Deploy Steps
+
+```bash
+# 1. Set environment variable
+vercel env add DATABASE_URL
+
+# 2. Deploy
+vercel --prod
+
+# 3. Add domain
+vercel domains add sluggerdata.com
+
+# 4. Run migrations
+vercel run --prod -- npm run db:push
+vercel run --prod -- npm run db:seed
+```
