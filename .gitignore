@@ -32,3 +32,4 @@ npm-debug.log*
 # Build cache
 .turbo/
 *.tsbuildinfo
+.vercel
